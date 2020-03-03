@@ -1,0 +1,11 @@
+*
+!requirements.txt
+!package.json
+!package-lock.json
+!tsconfig.json
+!server.py
+!src/index.tsx
+!src/index.css
+!public/favicon.ico
+!public/index.html
+!public/manifest.json

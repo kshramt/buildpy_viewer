@@ -1,0 +1,38 @@
+{
+  "name": "evidence_based_scheduling",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": ".",
+  "proxy": "http://127.0.0.1:9999",
+  "dependencies": {
+    "@types/jest": "^24.0.22",
+    "@types/node": "^11.15.2",
+    "@types/react": "^16.9.5",
+    "@types/react-dom": "^16.9.1",
+    "@types/react-redux": "^7.1.4",
+    "immer": "^4.0.1",
+    "react": "^16.10.2",
+    "react-dom": "^16.10.2",
+    "react-redux": "^7.1.1",
+    "react-scripts": "^3.3.0",
+    "typescript": "^3.8.2"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ],
+  "devDependencies": {
+    "jest": "^24.9.0"
+  }
+}

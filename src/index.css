@@ -1,0 +1,56 @@
+html, body, #root, #columns{
+    height: 100%;
+    margin: 0;
+}
+#columns{
+    display: flex;
+    flex-flow: row;
+}
+#tree {
+    height: 100%;
+    margin-top: 5ex;
+    float: left;
+    width: 50%;
+    overflow-y: scroll;
+}
+#queue{
+    height: 100%;
+    margin-top: 5ex;
+    float: left;
+    width: 50%;
+    overflow-y: scroll;
+}
+div.menu{
+    position: fixed;
+    top: 1ex;
+    left: 1ex;
+}
+input{
+    width: 6ex;
+}
+button{
+    padding: 0;
+    font-size: 50%;
+    vertical-align: text-bottom;
+}
+.done, .dont{
+    color: rgb(170, 170, 170);
+}
+textarea{
+    vertical-align: text-bottom;
+}
+
+div.menu{
+    background-color: white;
+}
+div.running{
+    background-color: Moccasin;
+}
+textarea{
+    border-color: rgb(235, 235, 235);
+}
+@media screen and (prefers-color-scheme: dark) {
+    html{
+        filter: invert(1);
+    }
+}
