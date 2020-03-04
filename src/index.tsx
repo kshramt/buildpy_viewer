@@ -171,12 +171,12 @@ const Column = connect(
   },
 )((props: { ts: string[] }) => {
   return (
-    <div>
-    <ol>
-      {props.ts.map(t => {
-        return <Node t={t} key={t} />;
-      })}
-    </ol>
+    <div className="column">
+      <ol>
+        {props.ts.map(t => {
+          return <Node t={t} key={t} />;
+        })}
+      </ol>
     </div>
   );
 });

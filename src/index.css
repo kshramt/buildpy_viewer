@@ -25,6 +25,11 @@ div.menu{
     top: 1ex;
     left: 1ex;
 }
+div.column{
+    width: 50%;
+    flex-shrink: 0;
+    word-break: break-all;
+}
 input{
     width: 6ex;
 }
