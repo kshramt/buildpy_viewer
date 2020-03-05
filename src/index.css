@@ -30,8 +30,8 @@ div.column{
     flex-shrink: 0;
     word-break: break-all;
 }
-input{
-    width: 6ex;
+input.selector{
+    width: 90%;
 }
 button{
     padding: 0;
