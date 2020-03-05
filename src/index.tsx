@@ -36,18 +36,6 @@ interface IAppProps {
   data: IJob[];
 }
 
-interface INodeOwnProps {
-  k: string;
-}
-
-interface IEntryOwnProps {
-  k: string;
-}
-
-interface IQueueColumnProps {
-  queue: string[];
-}
-
 interface IJob {
   data: TContainer;
   desc: null | string;
