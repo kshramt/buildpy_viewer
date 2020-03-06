@@ -30,6 +30,9 @@ div.column{
     flex-shrink: 0;
     word-break: break-all;
 }
+#selectors{
+    position: fixed;
+}
 input.selector{
     width: 90%;
 }

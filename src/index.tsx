@@ -10,6 +10,8 @@ setAutoFreeze(false); // Refs in the cache should not be frozen.
 
 const API_VERSION = "v1";
 
+const SPACES_RE = /\s+/;
+
 interface IHistory {
   prev: null | IHistory;
   value: IState;
@@ -17,30 +19,15 @@ interface IHistory {
 }
 
 interface IState {
-  job_list: IJob[];
-  job_string_list: string[];
+  job_list: IJobText[];
+  jobs_of_t: {
+    [k: string]: IJobText[];
+  };
+  jobs_of_d: {
+    [k: string]: IJobText[];
+  };
   selector_list: string[];
-  // data: IJob[];
-  // job_of_t: {
-  //   [k: string]: string;
-  // };
-  // ts_of_d: {
-  //   [k: string]: string[];
-  // };
-  // ds_of_t: {
-  //   [k: string]: string[];
-  // };
-  // ts_list: string[][];
-  // jobs: string[];
-
-  // selector_list: string[];
-  // selector_onChange_list: string[];
-  // // button_onClick: (e: React.ChangeEvent<HTMLInputElement>) => void;
   save_success: boolean;
-}
-
-interface IAppProps {
-  data: IJob[];
 }
 
 interface IJob {
@@ -54,6 +41,12 @@ interface IJob {
   successed: boolean;
   t: string;
   ts: TStringContainer;
+}
+
+interface IJobText {
+  ts: string[];
+  ds: string[];
+  text: string;
 }
 
 type TStringContainer =
@@ -85,76 +78,6 @@ interface IAddSelectorAction extends Action {
 
 type TActions = IUpdateSelectorAction | IAddSelectorAction;
 
-// class App extends React.Component<IAppProps, IState> {
-//   dirtyHistory: boolean;
-//   dirtyDump: boolean;
-//   history: IHistory;
-//   store: Store<IState, TActions>;
-
-//   constructor(props: IAppProps) {
-//     super(props);
-//     const ts_all = new Set<string>();
-//     const ds_all = new Set<string>();
-//     const job_of_t = {} as {
-//       [k: string]: string;
-//     };
-//     const ds_of_t = {} as {
-//       [k: string]: string[];
-//     };
-//     const ts_of_d = {} as {
-//       [k: string]: string[];
-//     };
-//     for (const job of props.data) {
-//       const ts_unique = Array.from(new Set(iterate_string_container(job.ts)));
-//       const ds_unique = Array.from(new Set(iterate_string_container(job.ds)));
-//       ts_unique.forEach(t => ts_all.add(t));
-//       ds_unique.forEach(d => ds_all.add(d));
-//       for (const t of ts_unique) {
-//         job_of_t[t] = JSON.stringify(job);
-//         ds_of_t[t] = ds_unique;
-//       }
-//       for (const d of ds_unique) {
-//         ts_of_d[d] = ts_unique;
-//       }
-//     }
-//     const ts_list = Array.from(
-//       ts_list_of(Array.from(difference(ts_all, ds_all)), ds_of_t),
-//     );
-//     const jobs = Array.from(new Set(Object.values(job_of_t)));
-
-//     const state = {
-//       data: props.data,
-//       job_of_t,
-//       ts_of_d,
-//       ds_of_t,
-//       ts_list,
-//       jobs,
-//       selector_list: [],
-//       selector_onChange_list: [],
-//       // button_onClick: (e:React.ChangeEvent<HTMLButtonElement>)=>{
-//       // },
-//       saveSuccess: true,
-//     };
-//     this.store = store_of(state);
-
-//     this.dirtyHistory = false;
-//     this.dirtyDump = false;
-//     this.history = {
-//       prev: null,
-//       value: state,
-//       next: null,
-//     };
-//   }
-//   render = () => {
-//     return (
-//       <Provider store={this.store}>
-//         <Selectors />
-//         <Display />
-//       </Provider>
-//     );
-//   };
-// }
-
 function* iterate_string_container(
   x: TStringContainer,
 ): Generator<string, any, undefined> {
@@ -167,32 +90,6 @@ function* iterate_string_container(
   } else {
     for (const k in x) {
       yield* iterate_string_container(x[k]);
-    }
-  }
-}
-
-function* ts_list_of(
-  ts: string[],
-  ds_of_t: {
-    [k: string]: string[];
-  },
-): Generator<string[], any, undefined> {
-  if (ts.length > 0) {
-    yield ts.sort();
-    let ts_new = [] as string[];
-    for (const t of ts) {
-      if (t in ds_of_t) {
-        ts_new = ts_new.concat(ds_of_t[t]);
-      }
-    }
-    yield* ts_list_of(Array.from(new Set(ts_new)), ds_of_t);
-  }
-}
-
-function* difference<T>(a: Set<T>, b: Set<T>): Generator<T, any, undefined> {
-  for (const x of a) {
-    if (!b.has(x)) {
-      yield x;
     }
   }
 }
@@ -224,13 +121,79 @@ const add_selector = () => ({
   type: "add_selector" as const,
 });
 
-const Display = connect((state: IState) => ({
-  job_string_list: state.job_string_list,
-}))((props: { job_string_list: string[] }) => (
+function* expand_job_list(
+  job_list: IJobText[],
+  jobs_of_t: { [k: string]: IJobText[] },
+  jobs_of_d: { [k: string]: IJobText[] },
+  seen: Set<IJobText>,
+  job_set_max: Set<IJobText>,
+  upward: boolean,
+  downward: boolean,
+): Generator<IJobText, any, undefined> {
+  for (const j of job_list) {
+    if (job_set_max.has(j) && !seen.has(j)) {
+      seen.add(j);
+      yield j;
+      if (upward) {
+        for (const t of j.ts) {
+          if (t in jobs_of_d) {
+            yield* expand_job_list(
+              jobs_of_d[t],
+              jobs_of_t,
+              jobs_of_d,
+              seen,
+              job_set_max,
+              true,
+              false,
+            );
+          }
+        }
+      }
+      if (downward) {
+        for (const d of j.ds) {
+          yield* expand_job_list(
+            jobs_of_t[d],
+            jobs_of_t,
+            jobs_of_d,
+            seen,
+            job_set_max,
+            false,
+            true,
+          );
+        }
+      }
+    }
+  }
+}
+
+const filter_job_list = (state: IState) => {
+  let job_list = state.job_list;
+  for (const selector of state.selector_list) {
+    const ws = selector.split(SPACES_RE);
+    job_list = Array.from(
+      expand_job_list(
+        job_list.filter(j => ws.every(w => j.text.includes(w))),
+        state.jobs_of_t,
+        state.jobs_of_d,
+        new Set(),
+        new Set(job_list),
+        true,
+        true,
+      ),
+    );
+  }
+  return job_list;
+};
+
+const Display = connect((state: IState) => {
+  return {
+    job_list: filter_job_list(state),
+  };
+})((props: { job_list: IJobText[] }) => (
   <div id="display">
     <ol>
-      {props.job_string_list.map(js => (
-        <li key={js}>{js}</li>
+      {props.job_list.map(j => (
+        <li key={j.text}>{j.text}</li>
       ))}
     </ol>
   </div>
@@ -258,7 +221,7 @@ const Selector = connect(
   }) => {
     return (
       <input
-      className="selector"
+        className="selector"
         value={props.selector}
         onChange={e => props.update_selector(e, props.i)}
       />
@@ -274,7 +237,7 @@ const Selectors = connect(
     add_selector: () => dispatch(add_selector()),
   }),
 )((props: { n_selector_list: number; add_selector: () => void }) => (
-  <div id="display">
+  <div id="selectors">
     <button onClick={props.add_selector}>+</button>
     <ol>
       {[...Array(props.n_selector_list).keys()].map(i => (
@@ -316,10 +279,38 @@ const root_reducer_of = (state_: IState) => {
 };
 
 const run = (data: IJob[]) => {
+  const job_list = data.map(j => ({
+    ts: Array.from(new Set(iterate_string_container(j.ts))),
+    ds: Array.from(new Set(iterate_string_container(j.ds))),
+    text: JSON.stringify(j),
+  }));
+  const jobs_of_t = {} as {
+    [k: string]: IJobText[];
+  };
+  const jobs_of_d = {} as {
+    [k: string]: IJobText[];
+  };
+  for (const j of job_list) {
+    for (const t of j.ts) {
+      if (t in jobs_of_t) {
+        jobs_of_t[t].push(j);
+      } else {
+        jobs_of_t[t] = [j];
+      }
+    }
+    for (const d of j.ds) {
+      if (d in jobs_of_d) {
+        jobs_of_d[d].push(j);
+      } else {
+        jobs_of_d[d] = [j];
+      }
+    }
+  }
   const state = {
-    job_list: data,
-    job_string_list: data.map(x => JSON.stringify(x)),
-    selector_list: [],
+    job_list,
+    jobs_of_t,
+    jobs_of_d,
+    selector_list: [] as string[],
     save_success: true,
   };
   const store = createStore(root_reducer_of(state), state);
