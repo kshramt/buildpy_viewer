@@ -202,28 +202,29 @@ const Display = connect((state: IState) => {
 const Selector = connect(
   (
     state: IState,
-    ownProp: {
+    ownProps: {
       i: number;
     },
-  ) => ({ selector: state.selector_list[ownProp.i], i: ownProp.i }),
-  (dispatch: Dispatch<TActions>) => ({
-    update_selector: (e: React.ChangeEvent<HTMLInputElement>, i: number) =>
-      dispatch(update_selector(e, i)),
+  ) => ({ selector: state.selector_list[ownProps.i] }),
+  (
+    dispatch: Dispatch<TActions>,
+    ownProps: {
+      i: number;
+    },
+  ) => ({
+    update_selector: (e: React.ChangeEvent<HTMLInputElement>) =>
+      dispatch(update_selector(e, ownProps.i)),
   }),
 )(
   (props: {
     selector: string;
-    i: number;
-    update_selector: (
-      e: React.ChangeEvent<HTMLInputElement>,
-      i: number,
-    ) => void;
+    update_selector: (e: React.ChangeEvent<HTMLInputElement>) => void;
   }) => {
     return (
       <input
         className="selector"
         value={props.selector}
-        onChange={e => props.update_selector(e, props.i)}
+        onChange={e => props.update_selector(e)}
       />
     );
   },
