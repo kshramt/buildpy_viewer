@@ -27,6 +27,7 @@ interface IState {
     [k: string]: IJobText[];
   };
   selector_list: string[];
+  selected: null | number;
   save_success: boolean;
 }
 
@@ -44,6 +45,7 @@ interface IJob {
 }
 
 interface IJobText {
+  id: number;
   ts: string[];
   ds: string[];
   text: string;
@@ -76,7 +78,12 @@ interface IAddSelectorAction extends Action {
   type: "add_selector";
 }
 
-type TActions = IUpdateSelectorAction | IAddSelectorAction;
+interface ISelectAction extends Action {
+  type: "select";
+  id: null | number;
+}
+
+type TActions = IUpdateSelectorAction | IAddSelectorAction | ISelectAction;
 
 function* iterate_string_container(
   x: TStringContainer,
@@ -107,6 +114,11 @@ const assert = (v: boolean, msg: string) => {
     throw new Error(msg);
   }
 };
+
+const select = (e: React.ChangeEvent<HTMLInputElement>, id: number) => ({
+  type: "select" as const,
+  id,
+});
 
 const update_selector = (
   e: React.ChangeEvent<HTMLInputElement>,
@@ -185,15 +197,77 @@ const filter_job_list = (state: IState) => {
   return job_list;
 };
 
+const expand_up_or_down = (
+  ret: IJobText[][],
+  job: IJobText,
+  jobs_of_t_or_d: {
+    [k: string]: IJobText[];
+  },
+  offset: number,
+  seen: Set<IJobText>,
+  up: boolean,
+) => {
+  if (seen.has(job)) {
+    return;
+  }
+  if (ret.length <= offset) {
+    ret.push([]);
+  }
+  ret[offset].push(job);
+  seen.add(job);
+  for (const x of up ? job.ts : job.ds) {
+    if (x in jobs_of_t_or_d) {
+      for (const j of jobs_of_t_or_d[x]) {
+        expand_up_or_down(ret, j, jobs_of_t_or_d, offset + 1, seen, up);
+      }
+    }
+  }
+};
+
+const Node = connect(
+  (
+    state: IState,
+    ownProps: {
+      id: number;
+    },
+  ) => {
+    return {
+      job: state.job_list[ownProps.id],
+      selected: state.selected === ownProps.id,
+    };
+  },
+  (
+    dispatch: Dispatch<TActions>,
+    ownProps: {
+      id: number;
+    },
+  ) => ({
+    select: (e: React.ChangeEvent<HTMLInputElement>) =>
+      dispatch(select(e, ownProps.id)),
+  }),
+)(
+  (props: {
+    job: IJobText;
+    selected: boolean;
+    select: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  }) => (
+    <li className={props.selected ? "selected" : undefined}>
+      <input type="checkbox" checked={props.selected} onChange={props.select} />
+      {props.job.text}
+    </li>
+  ),
+);
+
 const Display = connect((state: IState) => {
+  const job_list = filter_job_list(state);
   return {
-    job_list: filter_job_list(state),
+    job_list,
   };
 })((props: { job_list: IJobText[] }) => (
   <div id="display">
     <ol>
       {props.job_list.map(j => (
-        <li key={j.text}>{j.text}</li>
+        <Node key={j.id} id={j.id} />
       ))}
     </ol>
   </div>
@@ -205,7 +279,9 @@ const Selector = connect(
     ownProps: {
       i: number;
     },
-  ) => ({ selector: state.selector_list[ownProps.i] }),
+  ) => {
+    return { selector: state.selector_list[ownProps.i] };
+  },
   (
     dispatch: Dispatch<TActions>,
     ownProps: {
@@ -250,11 +326,79 @@ const Selectors = connect(
   </div>
 ));
 
-const App = () => (
-  <React.Fragment>
-    <Selectors />
-    <Display />
-  </React.Fragment>
+const Column = connect(
+  (
+    state: IState,
+    ownProp: {
+      column: IJobText[];
+    },
+  ) => {
+    return ownProp;
+  },
+)((props: { column: IJobText[] }) => {
+  console.log(props.column);
+  return (
+    <div className="column">
+      <ol>
+        {props.column.map(job => (
+          <Node key={job.id} id={job.id} />
+        ))}
+      </ol>
+    </div>
+  );
+});
+
+const Columns = connect(
+  (
+    state: IState,
+    ownProps: {
+      selected: number;
+    },
+  ) => {
+    const up_cols = [] as IJobText[][];
+    const job = state.job_list[ownProps.selected];
+    expand_up_or_down(
+      up_cols,
+      job,
+      state.jobs_of_d,
+      0,
+      new Set<IJobText>(),
+      true,
+    );
+    const down_cols = [] as IJobText[][];
+    expand_up_or_down(
+      down_cols,
+      job,
+      state.jobs_of_t,
+      0,
+      new Set<IJobText>(),
+      false,
+    );
+    const columns = up_cols.reverse().concat(down_cols.slice(1));
+    return {
+      columns,
+    };
+  },
+)((props: { columns: IJobText[][] }) => (
+  <div id="columns">
+    {props.columns.map((column, i) => (
+      <Column key={i} column={column} />
+    ))}
+  </div>
+));
+
+const App = connect((state: IState) => ({
+  selected: state.selected,
+}))((props: { selected: null | number }) =>
+  props.selected === null ? (
+    <React.Fragment>
+      <Selectors />
+      <Display />
+    </React.Fragment>
+  ) : (
+    // Tell the compiler that selected is not null.
+    <Columns selected={props.selected} />
+  ),
 );
 
 const root_reducer_of = (state_: IState) => {
@@ -271,6 +415,10 @@ const root_reducer_of = (state_: IState) => {
           return produce(state, draft => {
             draft.selector_list[action.i] = action.selector;
           });
+        case "select":
+          return produce(state, draft => {
+            draft.selected = draft.selected === action.id ? null : action.id;
+          });
         default:
           const _: never = action; // 1 or state cannot be used here
           return state;
@@ -280,7 +428,8 @@ const root_reducer_of = (state_: IState) => {
 };
 
 const run = (data: IJob[]) => {
-  const job_list = data.map(j => ({
+  const job_list = data.map((j, i) => ({
+    id: i,
     ts: Array.from(new Set(iterate_string_container(j.ts))),
     ds: Array.from(new Set(iterate_string_container(j.ds))),
     text: JSON.stringify(j),
@@ -311,7 +460,8 @@ const run = (data: IJob[]) => {
     job_list,
     jobs_of_t,
     jobs_of_d,
-    selector_list: [] as string[],
+    selector_list: [""],
+    selected: null,
     save_success: true,
   };
   const store = createStore(root_reducer_of(state), state);

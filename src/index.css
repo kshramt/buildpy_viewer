@@ -6,32 +6,19 @@ html, body, #root, #columns{
     display: flex;
     flex-flow: row;
 }
-#tree {
-    height: 100%;
-    margin-top: 5ex;
-    float: left;
-    width: 50%;
-    overflow-y: scroll;
-}
-#queue{
-    height: 100%;
-    margin-top: 5ex;
-    float: left;
-    width: 50%;
-    overflow-y: scroll;
-}
-div.menu{
-    position: fixed;
-    top: 1ex;
-    left: 1ex;
-}
 div.column{
-    width: 50%;
+    width: 75ex;
     flex-shrink: 0;
     word-break: break-all;
 }
+li.selected{
+    background-color: yellow;
+}
 #selectors{
+    overflow: hidden;
+    top: 0;
     position: fixed;
+    background-color: rgba(255, 255, 255, 0.75);
 }
 input.selector{
     width: 90%;
