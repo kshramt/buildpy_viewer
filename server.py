@@ -29,8 +29,8 @@ def jp(path, *more):
     return os.path.normpath(os.path.sep.join((path, os.path.sep.join(more))))
 
 
-DATA_DIR = os.environ.get("EBS_DATA_DIR", "data")
-DATA_BASENAME = os.environ.get("EBS_DATA_BASENAME", "defined")
+DATA_DIR = os.environ.get("BUILDPY_LOG_DIR", "data")
+DATA_BASENAME = os.environ.get("BUILDPY_LOG_BASENAME", "defined")
 PORT = os.environ.get("PORT", 8888)
 
 NO_ESTIMATION = 0

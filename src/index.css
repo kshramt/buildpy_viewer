@@ -14,14 +14,17 @@ div.column{
 li.selected{
     background-color: yellow;
 }
-#selectors{
+#menu{
     overflow: hidden;
     top: 0;
     position: fixed;
     background-color: rgba(255, 255, 255, 0.75);
 }
+#display{
+    margin-top: 16ex;
+}
 input.selector{
-    width: 90%;
+    width: 15ex;
 }
 button{
     padding: 0;

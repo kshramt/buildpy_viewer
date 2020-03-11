@@ -1,8 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import { connect, Provider } from "react-redux";
-import { Action, Dispatch, Store, createStore } from "redux";
-import produce, { Draft, setAutoFreeze } from "immer";
+import { Action, Dispatch, createStore } from "redux";
+import produce, { setAutoFreeze } from "immer";
 
 import "./index.css";
 
@@ -14,7 +14,7 @@ const SPACES_RE = /\s+/;
 
 interface IHistory {
   prev: null | IHistory;
-  value: IState;
+  curr: IState;
   next: null | IHistory;
 }
 
@@ -28,7 +28,6 @@ interface IState {
   };
   selector_list: string[];
   selected: null | number;
-  save_success: boolean;
 }
 
 interface IJob {
@@ -74,8 +73,21 @@ interface IUpdateSelectorAction extends Action {
   selector: string;
 }
 
+interface IDeleteSelectorAction extends Action {
+  type: "delete_selector";
+  i: number;
+}
+
 interface IAddSelectorAction extends Action {
   type: "add_selector";
+}
+
+interface IUndoAction extends Action {
+  type: "undo";
+}
+
+interface IRedoAction extends Action {
+  type: "redo";
 }
 
 interface ISelectAction extends Action {
@@ -83,7 +95,13 @@ interface ISelectAction extends Action {
   id: null | number;
 }
 
-type TActions = IUpdateSelectorAction | IAddSelectorAction | ISelectAction;
+type TActions =
+  | IUpdateSelectorAction
+  | IDeleteSelectorAction
+  | IAddSelectorAction
+  | IUndoAction
+  | IRedoAction
+  | ISelectAction;
 
 function* iterate_string_container(
   x: TStringContainer,
@@ -100,14 +118,6 @@ function* iterate_string_container(
     }
   }
 }
-
-const pushHistory = (h: IHistory, v: IState) => {
-  return (h.next = {
-    prev: h,
-    value: v,
-    next: null,
-  });
-};
 
 const assert = (v: boolean, msg: string) => {
   if (!v) {
@@ -129,8 +139,21 @@ const update_selector = (
   selector: e.currentTarget.value,
 });
 
+const delete_selector = (i: number) => ({
+  type: "delete_selector" as const,
+  i,
+});
+
 const add_selector = () => ({
   type: "add_selector" as const,
+});
+
+const undo = () => ({
+  type: "undo" as const,
+});
+
+const redo = () => ({
+  type: "redo" as const,
 });
 
 function* expand_job_list(
@@ -258,13 +281,13 @@ const Node = connect(
   ),
 );
 
-const Display = connect((state: IState) => {
+const List = connect((state: IState) => {
   const job_list = filter_job_list(state);
   return {
     job_list,
   };
 })((props: { job_list: IJobText[] }) => (
-  <div id="display">
+  <div id="list">
     <ol>
       {props.job_list.map(j => (
         <Node key={j.id} id={j.id} />
@@ -280,7 +303,9 @@ const Selector = connect(
       i: number;
     },
   ) => {
-    return { selector: state.selector_list[ownProps.i] };
+    return {
+      selector: state.selector_list[ownProps.i],
+    };
   },
   (
     dispatch: Dispatch<TActions>,
@@ -290,18 +315,23 @@ const Selector = connect(
   ) => ({
     update_selector: (e: React.ChangeEvent<HTMLInputElement>) =>
       dispatch(update_selector(e, ownProps.i)),
+    delete_selector: () => dispatch(delete_selector(ownProps.i)),
   }),
 )(
   (props: {
     selector: string;
     update_selector: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    delete_selector: () => void;
   }) => {
     return (
-      <input
-        className="selector"
-        value={props.selector}
-        onChange={e => props.update_selector(e)}
-      />
+      <React.Fragment>
+        <input
+          className="selector"
+          value={props.selector}
+          onChange={e => props.update_selector(e)}
+        />
+        <button onClick={props.delete_selector}>×</button>
+      </React.Fragment>
     );
   },
 );
@@ -316,13 +346,28 @@ const Selectors = connect(
 )((props: { n_selector_list: number; add_selector: () => void }) => (
   <div id="selectors">
     <button onClick={props.add_selector}>+</button>
-    <ol>
-      {[...Array(props.n_selector_list).keys()].map(i => (
-        <li key={i}>
-          <Selector i={i} />
-        </li>
-      ))}
-    </ol>
+    {[...Array(props.n_selector_list).keys()].map(i => (
+      <Selector i={i} key={i} />
+    ))}
+  </div>
+));
+
+const Menu = connect(
+  (
+    state: IState,
+    ownProps: {
+      selected: boolean;
+    },
+  ) => ownProps,
+  (dispatch: Dispatch<TActions>) => ({
+    undo: () => dispatch(undo()),
+    redo: () => dispatch(redo()),
+  }),
+)((props: { selected: boolean; undo: () => void; redo: () => void }) => (
+  <div id="menu">
+    <button onClick={props.undo}>⬅</button>
+    <button onClick={props.redo}>➡</button>
+    {props.selected ? null : <Selectors />}
   </div>
 ));
 
@@ -336,7 +381,6 @@ const Column = connect(
     return ownProp;
   },
 )((props: { column: IJobText[] }) => {
-  console.log(props.column);
   return (
     <div className="column">
       <ol>
@@ -389,36 +433,79 @@ const Columns = connect(
 
 const App = connect((state: IState) => ({
   selected: state.selected,
-}))((props: { selected: null | number }) =>
-  props.selected === null ? (
-    <React.Fragment>
-      <Selectors />
-      <Display />
-    </React.Fragment>
-  ) : (
-    // Tell the compiler that selected is not null.
-    <Columns selected={props.selected} />
-  ),
-);
+}))((props: { selected: null | number }) => (
+  <React.Fragment>
+    <Menu selected={props.selected !== null} />
+    <div id="display">
+      {props.selected === null ? (
+        <List />
+      ) : (
+        <Columns selected={props.selected} />
+      )}
+    </div>
+  </React.Fragment>
+));
+
+const push_history = (history: IHistory, state: IState) =>
+  (history.next = {
+    prev: history,
+    curr: state,
+    next: null,
+  });
 
 const root_reducer_of = (state_: IState) => {
+  let history = {
+    prev: null,
+    curr: state_,
+    next: null,
+  } as IHistory;
+  const save_history = (state: IState) => {
+    if (state !== history.curr) {
+      history = push_history(history, state);
+    }
+    return state;
+  };
   return (state: undefined | IState, action: TActions) => {
     if (state === undefined) {
       return state_;
     } else {
       switch (action.type) {
         case "add_selector":
-          return produce(state, draft => {
-            draft.selector_list.push("");
-          });
+          return save_history(
+            produce(state, draft => {
+              draft.selector_list.unshift("");
+            }),
+          );
         case "update_selector":
-          return produce(state, draft => {
-            draft.selector_list[action.i] = action.selector;
-          });
+          return save_history(
+            produce(state, draft => {
+              draft.selector_list[action.i] = action.selector;
+            }),
+          );
+        case "delete_selector":
+          return save_history(
+            produce(state, draft => {
+              draft.selector_list.splice(action.i, 1);
+            }),
+          );
         case "select":
-          return produce(state, draft => {
-            draft.selected = draft.selected === action.id ? null : action.id;
-          });
+          return save_history(
+            produce(state, draft => {
+              draft.selected = draft.selected === action.id ? null : action.id;
+            }),
+          );
+        case "undo":
+          if (history.prev !== null) {
+            history = history.prev;
+            state = history.curr;
+          }
+          return state;
+        case "redo":
+          if (history.next !== null) {
+            history = history.next;
+            state = history.curr;
+          }
+          return state;
         default:
           const _: never = action; // 1 or state cannot be used here
           return state;
@@ -462,7 +549,6 @@ const run = (data: IJob[]) => {
     jobs_of_d,
     selector_list: [""],
     selected: null,
-    save_success: true,
   };
   const store = createStore(root_reducer_of(state), state);
   return (
