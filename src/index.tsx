@@ -296,6 +296,12 @@ const List = connect((state: IState) => {
   </div>
 ));
 
+const focusInput = (e: HTMLInputElement) => {
+  if (e !== null) {
+    e.focus();
+  }
+};
+
 const Selector = connect(
   (
     state: IState,
@@ -305,6 +311,7 @@ const Selector = connect(
   ) => {
     return {
       selector: state.selector_list[ownProps.i],
+      focus: ownProps.i === 0 ? focusInput : undefined,
     };
   },
   (
@@ -320,6 +327,7 @@ const Selector = connect(
 )(
   (props: {
     selector: string;
+    focus: undefined | ((e: HTMLInputElement) => void);
     update_selector: (e: React.ChangeEvent<HTMLInputElement>) => void;
     delete_selector: () => void;
   }) => {
@@ -329,6 +337,7 @@ const Selector = connect(
           className="selector"
           value={props.selector}
           onChange={e => props.update_selector(e)}
+          ref={props.focus}
         />
         <button onClick={props.delete_selector}>×</button>
       </React.Fragment>
@@ -347,7 +356,7 @@ const Selectors = connect(
   <div id="selectors">
     <button onClick={props.add_selector}>+</button>
     {[...Array(props.n_selector_list).keys()].map(i => (
-      <Selector i={i} key={i} />
+      <Selector i={i} key={props.n_selector_list - i} />
     ))}
   </div>
 ));
