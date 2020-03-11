@@ -1,0 +1,19 @@
+= BuildPy Viewer
+
+----
+docker run --rm -p 5000:5000 -v "$(pwd)"/.buildpy/log/"$(ls .buildpy/log|tail -n1)":/app/data kshra/buildpy_viewer:latest
+
+----
+python3 -m  venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+npm ci
+
+BUILDPY_LOG_DIR=.buildpy/log/"$(ls .buildpy/log|tail -n1)" FLASK_APP=server.py FLASK_DEBUG=1 flask run
+# On another terminal window.
+npm start # http://localhost:3000
+----
+
+## License
+
+GNU General Public License version 3.
